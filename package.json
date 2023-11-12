@@ -17,10 +17,37 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.sayHello",
-        "title": "Hello World"
+        "command": "extension.arrayMethods",
+        "title": "Generate Callback Function For Method"
+      },
+      {
+        "command": "extension.generateUnitTest",
+        "title": "Create Unit Test And Copy To Clipboard"
+      },
+      {
+        "command": "extension.insertCommentAboveDeclaration",
+        "title": "Insert Comment Above Declaration"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "extension.arrayMethods",
+          "group": "navigation",
+          "when": "resourceLangId == javascript && editorHasSelection"
+        },
+        {
+          "command": "extension.generateUnitTest",
+          "group": "navigation",
+          "when": "resourceLangId == javascript && editorHasSelection"
+        },
+        {
+          "command": "extension.insertCommentAboveDeclaration",
+          "group": "navigation",
+          "when": "resourceLangId == javascript && editorHasSelection"
+        }
+      ]
+    }
   },
   "scripts": {
     "postinstall": "node ./node_modules/vscode/bin/install",
