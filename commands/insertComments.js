@@ -4,58 +4,63 @@ const vscode = require('vscode');
 const { getLines } = require('../utils/utils');
 
 const regexes = {
-    // Matches `const` or `let` in `const elements =` or `let count = 0`.
-    declaration: /^(const|let)/,
-    // Matches `person` in `for (const person of persons) {`.
-    forOfLoop: /(?<=for\s\(const\s)\w+(?=\sof)/,
-    // Matches `elements` or `count` in `const elements =` or `let count = 0`.
-    identifier: /(?<=^(const|let)\s)\w+(?=\s=)/,
+    // Matches `elements` in `const elements = []` or `countries` in `let countries = []`.
+    arrayLiteral: /(?<=^(?:const|let)\s\[?)(\w+)(?=]?\s=\s\[])/,
+    // Matches `elements` in `const [elements] =` or `count` in `let count =`.
+    declaration: /(?<=^(?:const|let)\s\[?)(\w+)(?=]?\s=)/,
+    // Matches `if ` in `if (database) {`.
+    ifStatement: /^if\s/,
+    // Matches `person` and `persons` in `for (const person of persons) {`.
+    forOfLoop: /(?<=for\s\(const\s)(\w+)\sof\s(\w+)/,
 };
 
-/** Inserts a JavaScript single-line comment one line above `const` and `let` declarations.
+const templates = {
+    arrayLiteral: '// Let `^variable1^` be an initially empty list of .\n',
+    declaration: '// Let `^variable1^` be.\n',
+    ifStatement: '// If .\n',
+    forOfLoop: '// For each ^variable1^ `^variable1^` of `^variable2^`.\n',
+};
+
+/** Inserts a JavaScript single-line comment one line above selected lines of code.
  */
 function insertComments() {
     // Let `file` be the current file.
     const file = vscode.window.activeTextEditor.document;
     // Let `lines` be a list of lines in `file`.
     const lines = getLines(file);
-    // Let `declarations` be a list of lines from `lines` that are const and let declarations.
-    const declarations = lines.filter(line => line.text.trim().match(regexes.declaration));
-
     const edit = new vscode.WorkspaceEdit();
 
-    // For each declaration `declaration` in `declarations`.
-    for (const declaration of declarations) {
-        // Let `previousLine` be the line preceding `declaration`.
-        const previousLine = file.lineAt(declaration.lineNumber - 1).text;
+    // For each line `line` in `lines`.
+    for (const line of lines) {
 
-        // If `previousLine` isn't a JavaScript single line comment.
-        if (previousLine.trim().startsWith('//') === false) {
-            // Let `identifier` be the name of the identifier from `declaration`.
-            const identifier = declaration.text.trim().match(regexes.identifier)?.[0];
-            // Let `comment` be a a JavaScript single line comment for `declaration`.
-            const comment = `// Let \`${identifier}\` be.\n`;
-            // Insert `comment` one line above `declaration`.
-            edit.insert(file.uri, declaration.range.start, comment);
-        }
-    }
+        // For each regular expression `regex` in `regexes`.
+        for (const regex in regexes) {
+            const isMatch = regexes[regex].test(line.text.trim());
 
-    // Let `forOfLoops` be a list of lines from `lines` that are for of loops.
-    const forOfLoops = lines.filter(line => line.text.trim().match(regexes.forOfLoop));
+            // If `line` is entirely described by `regex`.
+            if (isMatch) {
+                // Let `previousLine` be the line preceding `line`.
+                const previousLine = file.lineAt(Math.max(line.lineNumber - 1, 0));
+                
+                // If `previousLine` isn't a JavaScript single line comment.
+                if (previousLine.text.trim().startsWith('//') === false) {
+                    // Let `comment` be a new template of a JavaScript single-line comment.
+                    let comment = templates[regex];
+                    // Let `variables` be a list of variable names in `line`.
+                    const variables = line.text.trim().match(regexes[regex]).slice(1);
 
-    // For each forOfLoop `forOfLoop` in `forOfLoops`.
-    for (const forOfLoop of forOfLoops) {
-        // Let `previousLine` be the line preceding `forOfLoop`.
-        const previousLine = file.lineAt(forOfLoop.lineNumber - 1).text;
+                    // For each variable `variable` in `variables`.
+                    variables.forEach((variable, index) => {
+                        // Locate a relevant placeholder in `comment` and replace it with `variable`.
+                        comment = comment.replaceAll(`^variable${index + 1}^`, variable);
+                    });
 
-        // If `previousLine` isn't a JavaScript single line comment.
-        if (previousLine.trim().startsWith('//') === false) {
-            // Let `identifier` be the name of the identifier from `forOfLoop`.
-            const identifier = forOfLoop.text.trim().match(regexes.forOfLoop)?.[0];
-            // Let `comment` be a a JavaScript single line comment for `forOfLoop`.
-            const comment = `// For each ${identifier} \`${identifier}\` in \`${identifier}\`s.\n`;
-            // Insert `comment` one line above `forOfLoop`.
-            edit.insert(file.uri, forOfLoop.range.start, comment);
+                    // Insert `comment` above `line`. 
+                    edit.insert(file.uri, line.range.start, comment);
+                }
+
+                break;
+            }
         }
     }
 

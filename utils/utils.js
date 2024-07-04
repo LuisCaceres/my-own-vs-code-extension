@@ -4,21 +4,27 @@ const vscode = require('vscode');
 
 /**
  * Returns a list of lines `lines` in `file`.
- * @param {vscode.TextDocument} file 
+ * @param {vscode.TextDocument} file
+ * @param {RegExp} regex
  * @returns {[vscode.TextLine]}
  */
-function getLines(file) {
+function getLines(file, regex) {
     // Let `numberOfLines` be the number of lines in `file`.
     const numberOfLines = file.lineCount;
     // Let `lines` be an initially empty list of text lines.
-    const lines = [];
+    let lines = [];
     let count = 0;
 
     // For each line `line` in `file`.
-    while (++count < numberOfLines) {
+    while (count < numberOfLines) {
         const line = file.lineAt(count);
         // Add `line` to `lines`.
         lines.push(line);
+        count++;
+    }
+
+    if (regex instanceof RegExp) {
+        lines = lines.filter(line => regex.test(line.text));
     }
 
     // Return `lines`.
@@ -30,56 +36,123 @@ function getLines(file) {
  * @param {vscode.TextDocument} file 
  * @returns {Set<string>}
  */
-function getIdentifiers(file) {
-    // Let `regexes` be.
-    const regexes = {
-        // Matches `people` and `person` in `const people =` and `let person =`.
-        identifier: /(?<=(const|let)\s)\w+(?=\s\=)/,
-    };
-    // Let `lines` be lines of text in `file`.
-    const lines = getLines(file);
+async function getIdentifiers(file) {
+    const documentSymbols = await vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', file.uri);
     // Let `identifiers` be an initially empty list of identifiers.
     const identifiers = new Set();
 
-    // For each line `line` in `lines`.
-    for (const line of lines) {
-        // Let `text` be the text content of `line`.
-        const text = line.text;
-        // Let `identifier` be the name of an identifier in `text`, if there is one.
-        const identifier = text.match(regexes.identifier)?.[0];
+    (function recursion(documentSymbols) {
+        // For each line `line` in `lines`.
+        for (const documentSymbol of documentSymbols) {
 
-        // If there is an identifier.
-        if (identifier) {
-            // Add `identifier` to `identifiers`.
-            identifiers.add(identifier);
+            // If there is an identifier.
+            if (documentSymbol.kind === vscode.SymbolKind.Variable) {
+                identifiers.add(documentSymbol.name);
+            }
+
+            if (documentSymbol.children.length) {
+                recursion(documentSymbol.children)
+            }
         }
-    }
+    })(documentSymbols);
 
     return identifiers;
 }
 
 /**
- * Detects if `position` is part of a JavaScript template literal.
+ * Detects if `position` is within a JavaScript template literal.
  * @param {vscode.Position} position - The current position of the cursor.
  */
-function isTemplateLiteral(position) {
-    // Let `line` be the line on which `position` is located.
-    const line = position.line;
-    // Let `characters` be a list of characters found in `line`.
-    const characters = vscode.window.activeTextEditor.document.lineAt(line).text.split('');
-    // Let `character` be the current character located at `position`.
-    // Let `before` be a list of characters in `characters` that appear before `character`.
-    const before = characters.slice(0, position.character - 1);
-    // Let `after` be a list of characters in `characters` that appear after `character`.
-    const after = characters.slice(position.character);
+async function isCursorWithinTemplateLiteral(position) {
+    // Let `file` be the current file.
+    // Let `characters` be a list of characters found in `file`.
+    const characters = vscode.window.activeTextEditor.document.getText();
+    // Let `dataSets` be an initially empty list of data sets.
+    const dataSets = [];
 
-    // If there is a backtick character (`) in both `before` and `after`.
-        // Then `position` is within a JavaScript template literal.
-    return before.includes('`') && after.includes('`');
+    // For each character `character` in `charachters`.
+    for (let index = 0; index < characters.length; index++) {
+        // Let `character` be the current character.
+        const character = characters[index];
+
+        // If `character` is a backtick character.
+        if (character === '`') {
+            // Let `previousCharacter` be the character immediately preceding `character`.
+            const previousCharacter = characters[index - 1];
+
+            // If `previousCharacter` is a backslash then ignore `character`. 
+            if (previousCharacter === '\'') {
+                continue;
+            }
+
+            // Let `dataSet` be a new data set with the following information about `character`.
+            const dataSet = {
+                // The index of `character` in `characters`.
+                index,
+                // Whether `character` denotes the start or the end of a template literal.
+                position: dataSets.length % 2 === 0 ? 'start' : 'end',
+            };
+
+            // Add `dataSet` to `dataSets`.
+            dataSets.push(dataSet);
+        }
+    }
+
+    // Let `isCursorBetweenBacktickCharacters` be.
+    const isCursorBetweenBacktickCharacters = dataSets.some((dataSet, index, dataSets) => {
+
+        if (dataSet.position === 'start') {
+            // Let `index1` be.
+            const index1 = dataSet.index;
+            // Let `index2` be.
+            const index2 = vscode.window.activeTextEditor.document.offsetAt(position);
+            // Let `index3` be.
+            const index3 = dataSets[index + 1].index;
+
+            if (index1 <= index2 && index2 <= index3) {
+                return true;
+            }
+        }
+    });
+
+    return isCursorBetweenBacktickCharacters;
+}
+
+/**
+ * Formats `wordInPlural` into a word in singular. 
+ * @param {string} wordInPlural - A word in plural, for example: 'planets', 'maps', 'computers'.
+ * @return {string} A word in singular.
+ */
+function toSingular(wordInPlural) {
+    let wordInSingular = '';
+
+    switch (true) {
+        // For example: 'entries'.
+        case wordInPlural.endsWith('ies'):
+            wordInSingular = `${wordInPlural.slice(0, -3)}y`
+            break;
+        // For example: 'services'.
+        case wordInPlural.endsWith('ces'):
+            wordInSingular = `${wordInPlural.slice(0, -1)}`
+            break;
+        // For example: 'boxes'.            
+        case wordInPlural.endsWith('ches'):
+        case wordInPlural.endsWith('sses'):
+        case wordInPlural.endsWith('xes'):
+            wordInSingular = `${wordInPlural.slice(0, -2)}`
+            break;
+        default:
+            // For example: 'dogs'.
+            wordInSingular = `${wordInPlural.slice(0, -1)}`
+            break;
+    }
+
+    return wordInSingular;
 }
 
 module.exports = {
     getIdentifiers,
     getLines,
-    isTemplateLiteral,
+    isCursorWithinTemplateLiteral,
+    toSingular,
 };

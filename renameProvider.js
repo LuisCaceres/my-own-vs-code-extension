@@ -11,56 +11,81 @@
 // The module 'vscode' contains the VS Code extensibility API.
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
-const { getLines } = require('./utils/utils');
+const { getIdentifiers, getLines, toSingular } = require('./utils/utils');
 // Supported language type
-const languages = ['javascript', 'typescript'];
+const languages = ['javascript', 'typescript', 'vue'];
+
+
+const regexes = {
+  // Matches `person` and in `for (const person of persons) {`.
+  forOfLoop: /(?<=for\s\(const\s)(\w+)\sof\s\w+/,
+};
+
 
 /**
  * 
- * @param {vscode.TextDocument} document 
+ * @param {vscode.TextDocument} file 
  * @param {vscode.Position} position 
- * @param {String} newName 
+ * @param {String} newVariableName 
  * @param {CancellationToken} cancellationToken 
  */
-function provideRenameEdits(document, position, newName, cancellationToken) {
-    const range = document.getWordRangeAtPosition(position);
-    const oldName = document.getText(range);
+async function provideRenameEdits(file, position, newVariableName, cancellationToken) {
+  /** @type {[vscode.Location]} */ // Let `references` be a list of locations in which `oldVariableName` appears in `file`. 
+  const references = await vscode.commands.executeCommand('vscode.executeReferenceProvider', file.uri, position);
+  // Let `oldVariableName` be the variable name for which the rename provider has been requested.
+  const oldVariableName = file.getText(references[0].range);
+  const edit = new vscode.WorkspaceEdit();
 
-    vscode.commands.executeCommand('extension.renameIdentifierInComments', oldName, newName);
+  // For each reference `reference` in `references`.
+  for (const reference of references) {
+    const lineNumber = reference.range.start.line;
+    const previousLine = file.lineAt(lineNumber - 1);
+
+    // If `previousLine` is a JavaScript single line comment.
+    if (previousLine.text.trim().startsWith('//')) {
+      const replacement = previousLine.text.replace(`${oldVariableName}`, newVariableName);
+      edit.replace(file.uri, previousLine.range, replacement);
+    }
+  }
+
+  await vscode.workspace.applyEdit(edit);
+
+  // If `oldVariableName` is a word in plural then `oldVariableName` could exist as the name of a variable in singular. Therefore, the rename provider should be requested for those other variables. For example: `for (const planet of planets)` where the `planets` variable has been renamed to `services` as in `for (const planet of services)`.
+  if (oldVariableName.endsWith('s')) {
+    // Let `newNameInSingular` be `newVariableName` as a word in singular.
+    const newNameInSingular = toSingular(newVariableName);
+
+    // For each reference `reference` in `references`.
+    for (const reference of references) {
+      // Let `lineNumber` be.
+      const lineNumber = reference.range.start.line;
+      // Let `line` be.
+      const line = file.lineAt(lineNumber);
+      // Let `text` be.
+      const text = line.text.trim();
+
+      // For each regular expression `regex` in `regexes`.
+      for (const regex in regexes) {
+        const isMatch = regexes[regex].test(line.text.trim());
+
+        // If `line` is entirely described by `regex`.
+        if (isMatch) {
+          // Let `variables` be a list of variable names in `line`.
+          const variables = line.text.trim().match(regexes[regex]).slice(1);
+
+          // For each variable `variable` in `variables`.
+          variables.forEach(async (variable, index) => {
+            // Let `position` be.
+            const position = new vscode.Position(lineNumber, text.indexOf(variable));
+            const edit = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider', file.uri, position, newNameInSingular);
+            await vscode.workspace.applyEdit(edit);
+          });
+        }
+      }
+    }
+  }
 }
 
 const renameProvider = vscode.languages.registerRenameProvider(languages, { provideRenameEdits });
 
-/**
- * 
- * @param {string} oldIdentifier - The new name of an identifier.
- * @param {string} newIdentifier - The old name of the identifier that `newIdentifier` is going to replace.
- */
-function replaceIdentifier(oldIdentifier, newIdentifier) {
-    // Let `file` be the current file.
-    const file = vscode.window.activeTextEditor.document;
-    // Let `lines` be a list of a lines in `file`.
-    const lines = getLines(file);
-    // Let `comments` be a list of lines in `lines` that are single-line JavaScript comments.
-    const comments = lines.filter(line => line.text.trim().startsWith('//'));
-
-    const edit = new vscode.WorkspaceEdit();
-
-    // For each comment `comment` in `comments`.
-    for (const comment of comments) {
-        // Skip `comment` if `comment` doesn't contain `oldIdentifier`.
-        if (comment.text.includes(oldIdentifier) === false) {
-            continue;
-        }
-
-        // Replace `oldIdentifier` with `newIdentifier` in `comment`.
-        const replacement = comment.text.replaceAll(`\`${oldIdentifier}\``, `\`${newIdentifier}\``);
-        edit.replace(file.uri, comment.range, replacement);
-    }
-
-    vscode.workspace.applyEdit(edit);
-}
-
-const command = vscode.commands.registerCommand('extension.renameIdentifierInComments', replaceIdentifier);
-
-module.exports = [renameProvider, command];
+module.exports = [renameProvider];
