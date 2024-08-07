@@ -17,80 +17,108 @@ const dataSets = [
         title: 'Insert for... of loop',
         // For example, it matches `elements` in `const elements =`.
         regex: /(?<=const\s)\w+s(?=\s=)/g,
-        snippet:
+        
         /*  Example of code snippet:
             // For each `element` in `elements`.
             for (const element of elements) {
                 element;
             } 
         */
-        `
-
-        // For each ^variable2^ '^variable2^' in '^variable1^'.
-        for (const ^variable2^ of ^variable1^) {
-            ^variable2^;
-        }
-        `,
         generateCodeSnippet: function (variable) {
             const singular = new Word(variable).toSingular();
-            return this.snippet.replaceAll('^variable1^', variable).replaceAll('^variable2^', singular);
+            const codeSnippet = `
+
+            // For each ${singular} '${singular}' in '${variable}'.
+            for (const ${singular} of ${variable}) {
+                ${singular};
+            }
+            `;
+
+            return codeSnippet;
         }
     },
     {
         title: 'Add elements to array (push)',
         // For example, it matches `elements` in `const elements = []`.
         regex: /(?<=const\s)\w+s(?=\s=\s\[])/g,
-        snippet:
-        ` 
 
-        const ^variable2^ = ;
-        ^variable1^.push(^variable2^);
-        `,
+        /* Example of code snippet: 
+            const element = ;
+            elements.push(element);
+        */
         generateCodeSnippet: function (variable) {
             const singular = new Word(variable).toSingular();
-            return this.snippet.replaceAll('^variable1^', variable).replaceAll('^variable2^', singular);
+
+            const codeSnippet = `
+
+            const ${singular} = ;
+            ${variable}.push(${singular});
+            `;
+
+            return codeSnippet;
         }
     },
     {
         title: 'Insert if statement',
         // For example, it matches `elements` in `const elements = []`.
         regex: /(?<=const\s)\w+(?=\s=)/g,
-        snippet:
-        `
-
-        if (^variable1^) {
-        }
-        `,
+        
+        /* Example of code snippet:
+            if (elements) {} 
+        */
         generateCodeSnippet: function (variable) {
-            return this.snippet.replaceAll('^variable1^', variable);
+            const codeSnippet = `
+            
+            if (${variable}) {
+
+            }`;
+
+            return codeSnippet;
         }
     },
     {
         title: 'Sort',
         // For example, it matches `elements` in `const elements =`.
         regex: /(?<=const\s)\w+s(?=\s=)/g,
-        snippet:
-        `
 
-        {
-            function toNumber(^variable2^) {
-                return ^variable2^;
+        /* Example of code snippet:
+            {
+                function toNumber(element) {
+                    return element;
+                }
+
+                const map = new Map();
+
+                elements.forEach(element => {
+                    const number = toNumber(element);
+                    map.set(element, number);
+                });
+
+                // Sort 'elements' accordingly. 
+                elements.sort((elementA, elementB) => map.get(elementA).number -  map.get(elementB).number);
             }
-
-            const map = new Map();
-
-            ^variable1^.forEach(^variable2^ => {
-                const number = toNumber(^variable2^);
-                map.set(^variable2^, number);
-            });
-
-            // Sort '^variable1^' accordingly. 
-            ^variable1^.sort((^variable2^A, ^variable2^B) => map.get(^variable2^A).number -  map.get(^variable2^B).number);
-        }
-        `,
+        */
         generateCodeSnippet: function (variable) {
             const singular = new Word(variable).toSingular();
-            return this.snippet.replaceAll('^variable1^', variable).replaceAll('^variable2^', singular);
+            const codeSnippet = `
+
+            {
+                function toNumber(${singular}) {
+                    return ${singular};
+                }
+
+                const map = new Map();
+
+                ${variable}.forEach(${singular} => {
+                    const number = toNumber(${singular});
+                    map.set(${singular}, number);
+                });
+
+                // Sort '${variable}' accordingly. 
+                ${variable}.sort((${singular}A, ${singular}B) => map.get(${singular}A).number -  map.get(${singular}B).number);
+            }`;
+
+            return codeSnippet;
         }
     } 
 ];
