@@ -8,7 +8,12 @@
             "request": "launch",
             "runtimeExecutable": "${execPath}",
             "args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
-            "stopOnEntry": false
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**", "**/node_modules/**",
+                "**/extensions/**",
+                "**/app/out/vs/**",
+            ]
         },
         {
             "name": "Launch Tests",
@@ -16,7 +21,12 @@
             "request": "launch",
             "runtimeExecutable": "${execPath}",
             "args": ["--extensionDevelopmentPath=${workspaceRoot}", "--extensionTestsPath=${workspaceRoot}/test" ],
-            "stopOnEntry": false
+            "stopOnEntry": false,
+            "skipFiles": [
+                "<node_internals>/**", "**/node_modules/**",
+                "**/extensions/**",
+                "**/app/out/vs/**",
+            ]
         }
     ]
 }
