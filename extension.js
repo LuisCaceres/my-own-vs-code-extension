@@ -2,10 +2,10 @@
 // Import the module and reference it with the alias vscode in your code;
 const vscode = require('vscode');
 
-const codeActionsProvider = require('./codeActionsProvider.ts');
-const completionProvider = require('./completionItemProvider');
-const [renameProvider, command] = require('./renameProvider');
-const insertComments = require('./commands/insertComments');
+const codeActionsProvider = require('./codeActionsProvider.cts');
+const completionProvider = require('./completionItemProvider.cts');
+const [renameProvider, command] = require('./renameProvider.cts');
+const insertComments = require('./commands/insertComments.cts');
 
 const providers = [];
 
