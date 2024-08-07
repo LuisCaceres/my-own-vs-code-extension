@@ -8,7 +8,7 @@
 // The module 'vscode' contains the VS Code extensibility API.
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
-const { isCursorWithinTemplateLiteral, getIdentifiers, toSingular } = require('./utils/utils');
+const { isCursorWithinTemplateLiteral, getIdentifiers, Word } = require('./utils/utils.cts');
 
 // Supported language type
 const languages = ['javascript', 'typescript', 'vue'];
@@ -186,7 +186,7 @@ function foo(characters, document, cursor) {
         if (identifier2) {
             if (identifier2[0].endsWith('s')) {
                 snippet = snippet.replaceAll('^variable1^', identifier2[0]);
-                snippet = snippet.replaceAll('^variable2^', toSingular(identifier2[0]));
+                snippet = snippet.replaceAll('^variable2^', new Word(identifier2[0]).toSingular());
             }
             else {
                 // Replace 

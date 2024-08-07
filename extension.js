@@ -1,8 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API.
-// Import the module and reference it with the alias vscode in your code belowdebugger;
+// Import the module and reference it with the alias vscode in your code;
 const vscode = require('vscode');
 
-const codeActionsProvider = require('./codeActionsProvider');
+const codeActionsProvider = require('./codeActionsProvider.ts');
 const completionProvider = require('./completionItemProvider');
 const [renameProvider, command] = require('./renameProvider');
 const insertComments = require('./commands/insertComments');
@@ -28,4 +28,3 @@ function deactivate() {
 }
 
 exports.deactivate = deactivate;
-

@@ -11,7 +11,7 @@
 // The module 'vscode' contains the VS Code extensibility API.
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
-const { getIdentifiers, getLines, toSingular } = require('./utils/utils');
+const { getIdentifiers, getLines, Word } = require('./utils/utils.cts');
 // Supported language type
 const languages = ['javascript', 'typescript', 'vue'];
 
@@ -53,7 +53,7 @@ async function provideRenameEdits(file, position, newVariableName, cancellationT
   // If `oldVariableName` is a word in plural then `oldVariableName` could exist as the name of a variable in singular. Therefore, the rename provider should be requested for those other variables. For example: `for (const planet of planets)` where the `planets` variable has been renamed to `services` as in `for (const planet of services)`.
   if (oldVariableName.endsWith('s')) {
     // Let `newNameInSingular` be `newVariableName` as a word in singular.
-    const newNameInSingular = toSingular(newVariableName);
+    const newNameInSingular = new Word(newVariableName).toSingular();
 
     // For each reference `reference` in `references`.
     for (const reference of references) {
